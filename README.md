@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # WEV — Mini-App Platform
 
 A production-style mono-repo demonstrating a mobile "super-app" kernel
@@ -119,3 +120,6 @@ _Add screenshots here after running the app:_
 - `docs/screenshots/sports-booking.png` — booking flow with duration presets
 - `docs/screenshots/care-suggestion-banner.png` — cross-app suggestion banner
 - `docs/screenshots/offline-queue.png` — offline booking state
+=======
+# Wevsocial
+>>>>>>> origin/main
