@@ -1,21 +1,17 @@
-<<<<<<< HEAD
 # WEV — Mini-App Platform
 
-A production-style mono-repo demonstrating a mobile "super-app" kernel
-(Host Shell + Mini-App Registry + typed Bridge SDK + permissions + fault
-isolation) on top of a full Node/Express/Prisma/PostgreSQL backend with
-JWT auth, RBAC, offline-first sync, and deterministic geo-privacy.
+A production-style monorepo demonstrating a mobile super-app architecture (Host Shell + Mini-App Registry + typed Bridge SDK + permissions + fault isolation), built on a Node.js/Express/Prisma/PostgreSQL backend with JWT authentication, role-based access control (RBAC), offline-first sync, and deterministic geo-privacy.
 
-## Folder structure
+## Folder Structure
 
-```
+```text
 /backend       Express + Prisma + PostgreSQL API
 /mobile
-  /app         Expo Router file-based routes (Host Shell screens + mini-app routes)
+  /app         Expo Router file-based routes (Host Shell + mini-app routes)
   /kernel      Registry, Bridge SDK, permissions, error boundaries, namespaced storage
-  /mini-apps   sports/ care/ events/ — each isolated, communicating only via the bridge
-  /shared      design tokens, offline queue, http client, auth store, UI primitives
-  /types       shared TypeScript contracts (API DTOs, navigation, bridge events)
+  /mini-apps   sports/, care/, events/ — isolated mini-apps
+  /shared      Design tokens, offline queue, HTTP client, auth store, UI primitives
+  /types       Shared TypeScript contracts (API DTOs, navigation, bridge events)
 docker-compose.yml
 SDK.md
 ARCHITECTURE.md
@@ -23,40 +19,48 @@ ARCHITECTURE.md
 
 ## Prerequisites
 
-- Docker + Docker Compose
+- Docker and Docker Compose
 - Node.js 20+
 - npm
-- Expo Go app on your phone, or an iOS/Android simulator
+- Expo Go on your phone, or an iOS/Android simulator
 
-## 1. Start the backend (zero manual steps)
+## 1. Start the Backend
+
+From the project root, run:
 
 ```bash
 docker compose up --build
 ```
 
 This single command:
-1. Starts PostgreSQL and waits for its health check to pass.
-2. Builds and starts the backend image.
-3. The backend entrypoint automatically runs `prisma migrate deploy`,
-   then runs the idempotent seed script, then starts the API.
 
-No `docker exec`, no manual migration command, no manual seed command.
+1. Starts PostgreSQL and waits for its health check.
+2. Builds and starts the backend container.
+3. Runs `prisma migrate deploy`, executes the idempotent seed script, and starts the API.
 
-Verify it's up:
+No manual database migration or seed commands are required.
+
+Verify that the API is running:
 
 ```bash
 curl http://localhost:4000/health
 ```
 
-Seeded demo accounts (password for all: `Password123!`):
+### Seeded Demo Accounts
 
-| Email            | Role  |
-|------------------|-------|
-| admin@wev.dev    | ADMIN |
-| host@wev.dev     | HOST  |
-| user@wev.dev     | USER  |
+All demo accounts use the password `Password123!`.
 
-## 2. Run the mobile app
+| Email | Role |
+|---|---|
+| admin@wev.dev | ADMIN |
+| host@wev.dev | HOST |
+| user@wev.dev | USER |
+
+**Security note:** These are development-only demo credentials. Never use them in production.
+
+## 2. Run the Mobile App
+
+Open a separate terminal from the project root and run:
 
 ```bash
 cd mobile
@@ -64,62 +68,65 @@ npm install
 npx expo start
 ```
 
-Scan the QR code with Expo Go (or press `i` / `a` for a simulator). By
-default the app points at `http://localhost:4000` (see `mobile/.env`). If
-you're testing on a physical device on the same network, change
-`EXPO_PUBLIC_API_URL` in `mobile/.env` to your machine's LAN IP.
+Scan the QR code with Expo Go, or press `a` for an Android emulator or `i` for an iOS simulator.
 
-## 3. What to try
+By default, the app uses `http://localhost:4000`. Check `mobile/.env` for `EXPO_PUBLIC_API_URL`.
 
-- **Register / log in** — JWT access + refresh token rotation, stored in
-  Expo Secure Store. Kill the app and reopen it; the session persists.
-- **Sports → book a 2-hour session** — after confirmation, switch to the
-  **Care** tab: a "Need childcare during this session?" banner appears,
-  driven entirely by a typed event over the kernel bridge (no direct
-  import between the two mini-apps). Tap it to deep-link into Care's
-  booking screen with the time slot prefilled.
-- **Sports → "Debug: Crash Sports"** — throws inside the Sports mini-app.
-  Its `MiniAppErrorBoundary` catches it and shows a remount screen; Care
-  and Events remain fully functional the entire time (fault isolation).
-- **Offline booking** — turn on airplane mode, book a session. It's queued
-  locally (FIFO) with state `QUEUED`; turn connectivity back on and it
-  syncs automatically. Book the exact same slot from two clients to see a
-  simulated `409` conflict roll back the optimistic UI.
-- **Care provider list** — coordinates returned by `/providers` are always
-  the deterministically-obfuscated ones (see `ARCHITECTURE.md#geo-privacy`);
-  real coordinates never leave the backend process.
+When testing on a physical device, configure `EXPO_PUBLIC_API_URL` in `mobile/.env` to use your computer's LAN IP address instead of `localhost`. Ensure the phone and computer are on the same network and the backend is reachable.
 
-## Environment variables
+## 3. Features to Try
 
-See `backend/.env.example` and `mobile/.env.example`. Working defaults are
-already checked in as `backend/.env` and `mobile/.env` for local
-development — **never use these secrets in production.**
+- **Register and log in:** JWT access and refresh token rotation, with sessions stored using Expo Secure Store.
+- **Cross-app integration:** Book a two-hour session in Sports, then switch to Care. A childcare suggestion appears through a typed kernel bridge event, without direct imports between mini-apps. Tap it to open the Care booking screen with the time slot prefilled.
+- **Fault isolation:** Use Sports → "Debug: Crash Sports" to trigger a mini-app error. Its `MiniAppErrorBoundary` displays a recovery screen while Care and Events remain functional.
+- **Offline booking:** Enable airplane mode and create a booking. It is queued locally with the `QUEUED` state and syncs when connectivity returns. Booking the same slot from two clients demonstrates conflict handling through a simulated `409` response.
+- **Geo-privacy:** The Care provider list receives deterministically obfuscated coordinates from `/providers`. Real coordinates remain inside the backend process.
 
-## Linting / formatting / type-checking
+## Environment Variables
+
+Environment templates are provided in:
+
+- `backend/.env.example`
+- `mobile/.env.example`
+
+Local development environment files may be present as `backend/.env` and `mobile/.env`.
+
+**Never commit real credentials, database passwords, JWT secrets, API keys, or other sensitive values.** Keep `.env` files out of Git and use `.env.example` files containing placeholders.
+
+## Linting, Formatting, and Type Checking
+
+### Backend
 
 ```bash
-# backend
-cd backend && npm run lint && npm run build
-
-# mobile
-cd mobile && npm run lint && npm run typecheck
+cd backend
+npm run lint
+npm run build
 ```
+
+### Mobile
+
+```bash
+cd mobile
+npm run lint
+npm run typecheck
+```
+
+Run these commands from their respective directories.
 
 ## Documentation
 
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — kernel design, registry, bridge,
-  permissions, RBAC, offline queue, geo-obfuscation, repository pattern,
-  trade-offs, future improvements.
-- [`SDK.md`](./SDK.md) — full `wev` Bridge SDK reference with examples.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Kernel design, registry, bridge, permissions, RBAC, offline queue, geo-obfuscation, repository pattern, trade-offs, and future improvements.
+- [SDK.md](SDK.md) — Reference for the `wev` Bridge SDK, with usage examples.
 
 ## Screenshots
 
-_Add screenshots here after running the app:_
+Add screenshots after running the application:
 
-- `docs/screenshots/host-shell.png` — mini-app launcher grid
-- `docs/screenshots/sports-booking.png` — booking flow with duration presets
-- `docs/screenshots/care-suggestion-banner.png` — cross-app suggestion banner
-- `docs/screenshots/offline-queue.png` — offline booking state
-=======
-# Wevsocial
->>>>>>> origin/main
+| Screenshot | Description |
+|---|---|
+| `docs/screenshots/host-shell.png` | Mini-app launcher grid |
+| `docs/screenshots/sports-booking.png` | Booking flow with duration presets |
+| `docs/screenshots/care-suggestion-banner.png` | Cross-app suggestion banner |
+| `docs/screenshots/offline-queue.png` | Offline booking state |
+
+Create the `docs/screenshots/` directory and add the corresponding images when they are available.
