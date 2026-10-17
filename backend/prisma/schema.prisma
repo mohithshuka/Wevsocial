@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  GUEST
+  USER
+  HOST
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  CONFLICT_REJECTED
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  name          String
+  role          Role           @default(USER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+  sportsBookings SportsBooking[]
+  careBookings   CareBooking[]
+  providerProfile Provider?
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revoked   Boolean  @default(false)
+  replacedBy String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model MiniApp {
+  id          String   @id
+  name        String
+  version     String
+  entry       String
+  permissions String[]
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@map("mini_apps")
+}
+
+model Activity {
+  id          String          @id @default(uuid())
+  title       String
+  description String
+  location    String
+  startTimes  DateTime[]
+  durationMins Int
+  createdAt   DateTime        @default(now())
+  bookings    SportsBooking[]
+
+  @@map("activities")
+}
+
+model SportsBooking {
+  id            String        @id @default(uuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activityId    String
+  activity      Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  startTime     DateTime
+  durationMins  Int
+  status        BookingStatus @default(PENDING)
+  clientRequestId String      @unique
+  createdAt     DateTime      @default(now())
+
+  @@index([userId])
+  @@map("sports_bookings")
+}
+
+model Provider {
+  id          String        @id @default(uuid())
+  userId      String?       @unique
+  user        User?         @relation(fields: [userId], references: [id])
+  name        String
+  category    String
+  bio         String
+  realLat     Float
+  realLng     Float
+  obfuscatedLat Float
+  obfuscatedLng Float
+  createdAt   DateTime      @default(now())
+  bookings    CareBooking[]
+
+  @@map("providers")
+}
+
+model CareBooking {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerId      String
+  provider        Provider      @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  startTime       DateTime
+  durationMins    Int
+  status          BookingStatus @default(PENDING)
+  clientRequestId String        @unique
+  sourceBookingId String?
+  createdAt       DateTime      @default(now())
+
+  @@index([userId])
+  @@map("care_bookings")
+}

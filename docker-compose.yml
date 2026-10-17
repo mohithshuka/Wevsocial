@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wev_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wev
+      POSTGRES_PASSWORD: wev_password
+      POSTGRES_DB: wev_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - wev_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wev -d wev_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wev_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://wev:wev_password@postgres:5432/wev_db?schema=public
+      JWT_ACCESS_SECRET: change_me_access_secret_dev_only
+      JWT_REFRESH_SECRET: change_me_refresh_secret_dev_only
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 30d
+      GEO_OBFUSCATION_SEED: wev_geo_salt_dev_only
+      NODE_ENV: production
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  wev_postgres_data:
